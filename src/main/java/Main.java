@@ -33,6 +33,12 @@ public class Main {
 
       if(get[1].equals("/")) {
         clientOut.write("HTTP/1.1 200 OK\r\n\r\n".getBytes());
+      } else if (get[1].startsWith("/echo/")) {
+        String message = get[1].substring(6);
+        String response = String.format(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+            message.length(), message);
+        clientOut.write(response.getBytes());
       } else {
         clientOut.write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
       }
