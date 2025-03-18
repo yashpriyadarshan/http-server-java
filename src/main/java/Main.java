@@ -2,7 +2,11 @@ import java.io.*;
 import java.net.*;
 
 public class Main {   
+    private static String directory = ".";
     public static void main(String[] args) {
+        if (args.length == 2 && "--directory".equals(args[0])) {
+            directory = args[1];
+        }
         try (ServerSocket serverSocket = new ServerSocket(4221)) {
             serverSocket.setReuseAddress(true);
             System.out.println("Server is running...");
@@ -10,7 +14,7 @@ public class Main {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Accepted new Connection");
-                new Thread(new HandleClient(clientSocket)).start();
+                new Thread(new HandleClient(clientSocket, directory)).start();
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
@@ -20,9 +24,11 @@ public class Main {
 
 class HandleClient implements Runnable {
     private final Socket clientSocket;
+    private final String directory;
 
-    public HandleClient(Socket clientSocket) {
+    public HandleClient(Socket clientSocket, String directory) {
         this.clientSocket = clientSocket;
+        this.directory = directory;
     }
 
     @Override
@@ -74,6 +80,22 @@ class HandleClient implements Runnable {
                            "Content-Length: " + echoMessage.length() + "\r\n" +
                            "Connection: close\r\n\r\n" +
                            echoMessage;
+            } else if (path.startsWith("/files/")) {
+                String filename = path.substring(7);  // Extract filename
+                File file = new File(directory, filename);
+
+                if (file.exists() && file.isFile()) {
+                    byte[] fileData = readFile(file);
+                    response = "HTTP/1.1 200 OK\r\n" +
+                               "Content-Type: application/octet-stream\r\n" +
+                               "Content-Length: " + fileData.length + "\r\n" +
+                               "Connection: close\r\n\r\n";
+                    outputStream.write(response.getBytes());
+                    outputStream.write(fileData);  // Send file content
+                } else {
+                    response = "HTTP/1.1 404 Not Found\r\n\r\n";
+                    outputStream.write(response.getBytes());
+                }
             } else {
                 response = "HTTP/1.1 404 Not Found\r\n" +
                            "Content-Length: 0\r\n" +
