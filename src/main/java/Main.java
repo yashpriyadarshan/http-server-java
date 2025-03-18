@@ -1,12 +1,12 @@
 import java.io.*;
 import java.net.*;
+import java.nio.file.Files;
 
 public class Main {   
-    private static String directory = ".";  // Default directory
-
+    private static String directory;
     public static void main(String[] args) {
-        // Parse command-line arguments
-        if (args.length == 2 && "--directory".equals(args[0])) {
+
+        if (args.length > 1 && args[0].equals("--directory")) {
             directory = args[1];
         }
 
@@ -27,7 +27,7 @@ public class Main {
 
 class HandleClient implements Runnable {
     private final Socket clientSocket;
-    private final String directory;
+    private String directory;
 
     public HandleClient(Socket clientSocket, String directory) {
         this.clientSocket = clientSocket;
@@ -39,7 +39,7 @@ class HandleClient implements Runnable {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              OutputStream outputStream = clientSocket.getOutputStream()) {
 
-            // Read request line
+            // Read the request line
             String requestLine = reader.readLine();
             if (requestLine == null || requestLine.isEmpty()) {
                 System.out.println("Invalid request received.");
@@ -84,29 +84,25 @@ class HandleClient implements Runnable {
                            "Connection: close\r\n\r\n" +
                            echoMessage;
             } else if (path.startsWith("/files/")) {
-                String filename = path.substring(7);  // Extract filename
+                String filename = path.substring(7);
                 File file = new File(directory, filename);
 
-                if (file.exists() && file.isFile()) {
-                    byte[] fileData = readFile(file);
-                    response = "HTTP/1.1 200 OK\r\n" +
-                               "Content-Type: application/octet-stream\r\n" +
-                               "Content-Length: " + fileData.length + "\r\n" +
-                               "Connection: close\r\n\r\n";
-                    outputStream.write(response.getBytes());
-                    outputStream.write(fileData);  // Send file content
+                if (file.exists()) {
+                    byte[] fileContent = Files.readAllBytes(file.toPath());
+                    response = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: " +
+                                fileContent.length + "\r\n\r\n" + new String(fileContent);
                 } else {
                     response = "HTTP/1.1 404 Not Found\r\n\r\n";
-                    outputStream.write(response.getBytes());
                 }
+                
             } else {
                 response = "HTTP/1.1 404 Not Found\r\n" +
                            "Content-Length: 0\r\n" +
                            "Connection: close\r\n\r\n";
-                outputStream.write(response.getBytes());
             }
 
-            // Send response
+            // Send the response
+            outputStream.write(response.getBytes());
             outputStream.flush();
 
         } catch (IOException e) {
@@ -117,12 +113,6 @@ class HandleClient implements Runnable {
             } catch (IOException e) {
                 System.out.println("Error closing client socket: " + e.getMessage());
             }
-        }
-    }
-
-    private byte[] readFile(File file) throws IOException {
-        try (FileInputStream fis = new FileInputStream(file)) {
-            return fis.readAllBytes();
         }
     }
 }
