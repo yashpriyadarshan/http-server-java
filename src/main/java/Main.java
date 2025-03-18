@@ -10,7 +10,7 @@ public class Main {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Accepted new Connection");
-                new Thread(new HandleClient(clientSocket)).start();  // 🚀 Run in a new thread!
+                new Thread(new HandleClient(clientSocket)).start();
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
@@ -37,14 +37,24 @@ class HandleClient implements Runnable {
                 return;
             }
 
-            // Read and discard remaining headers
-            String header;
-            header = reader.readLine();
-            header = reader.readLine();
-            System.out.println("Header: " + header);
+            // Read headers dynamically
+            String userAgent = "Unknown";  // Default value
+            String line;
+            while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                if (line.startsWith("User-Agent:")) {
+                    userAgent = line.substring(12).trim();  // Extract user-agent value
+                }
+            }
 
-            // Parse the request
+            System.out.println("Request: " + requestLine);
+            System.out.println("User-Agent: " + userAgent);
+
+            // Parse request
             String[] parts = requestLine.split(" ");
+            if (parts.length < 2) {
+                System.out.println("Malformed request.");
+                return;
+            }
 
             String path = parts[1];
             String response;
@@ -55,8 +65,8 @@ class HandleClient implements Runnable {
                            "Connection: close\r\n\r\n";
             } else if (path.startsWith("/user-agent")) {
                 response = String.format(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %s\r\n\r\n%s\r\n",
-                            header.length(), header);
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s",
+                    userAgent.length(), userAgent);
             } else if (path.startsWith("/echo/")) {
                 String echoMessage = path.substring(6);
                 response = "HTTP/1.1 200 OK\r\n" +
