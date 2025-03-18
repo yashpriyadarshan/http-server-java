@@ -55,6 +55,17 @@ class HandleClient implements Runnable {
                 }
             }
 
+            StringBuffer bodyBuffer = new StringBuffer();
+            while (reader.ready()) {
+                bodyBuffer.append((char)reader.read());
+            }
+            String body = bodyBuffer.toString();
+
+            String[] requestLinePieces = requestLine.split(" ", 3);
+            String httpMethod = requestLinePieces[0];
+            String requestTarget = requestLinePieces[1];
+            String httpVersion = requestLinePieces[2];
+
             System.out.println("Request: " + requestLine);
             System.out.println("User-Agent: " + userAgent);
 
@@ -67,6 +78,23 @@ class HandleClient implements Runnable {
 
             String path = parts[1];
             String response;
+
+            if ("POST".equals(httpMethod)) {
+                if (requestTarget.startsWith("/files/")) {
+                  File file = new File(directory + requestTarget.substring(7));
+                  if (file.createNewFile()) {
+                    FileWriter fileWriter = new FileWriter(file);
+                    fileWriter.write(body);
+                    fileWriter.close();
+                  }
+                  outputStream.write("HTTP/1.1 201 Created\r\n\r\n".getBytes());
+                } else {
+                  outputStream.write("HTTP/1.1 404 Not Found\r\n\r\n".getBytes());
+                }
+                outputStream.flush();
+                outputStream.close();
+                return;
+            }
 
             if ("/".equals(path)) {
                 response = "HTTP/1.1 200 OK\r\n" +
