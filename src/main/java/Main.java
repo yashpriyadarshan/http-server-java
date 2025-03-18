@@ -2,11 +2,14 @@ import java.io.*;
 import java.net.*;
 
 public class Main {   
-    private static String directory = ".";
+    private static String directory = ".";  // Default directory
+
     public static void main(String[] args) {
+        // Parse command-line arguments
         if (args.length == 2 && "--directory".equals(args[0])) {
             directory = args[1];
         }
+
         try (ServerSocket serverSocket = new ServerSocket(4221)) {
             serverSocket.setReuseAddress(true);
             System.out.println("Server is running...");
@@ -36,7 +39,7 @@ class HandleClient implements Runnable {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              OutputStream outputStream = clientSocket.getOutputStream()) {
 
-            // Read the request line
+            // Read request line
             String requestLine = reader.readLine();
             if (requestLine == null || requestLine.isEmpty()) {
                 System.out.println("Invalid request received.");
@@ -100,10 +103,10 @@ class HandleClient implements Runnable {
                 response = "HTTP/1.1 404 Not Found\r\n" +
                            "Content-Length: 0\r\n" +
                            "Connection: close\r\n\r\n";
+                outputStream.write(response.getBytes());
             }
 
-            // Send the response
-            outputStream.write(response.getBytes());
+            // Send response
             outputStream.flush();
 
         } catch (IOException e) {
@@ -114,6 +117,12 @@ class HandleClient implements Runnable {
             } catch (IOException e) {
                 System.out.println("Error closing client socket: " + e.getMessage());
             }
+        }
+    }
+
+    private byte[] readFile(File file) throws IOException {
+        try (FileInputStream fis = new FileInputStream(file)) {
+            return fis.readAllBytes();
         }
     }
 }
